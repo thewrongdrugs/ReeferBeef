@@ -1044,6 +1044,21 @@ String Beefy::GetFileExtension(const StringImpl& path)
 	return path.Substring(dotPos);
 }
 
+bool hasFileExtension(char ext[], const StringImpl& pathEnding)
+{
+	return pathEnding.Equals(ext, StringImpl::CompareKind_OrdinalIgnoreCase);
+}
+
+ExtTyp Beefy::GetMappedExtension(const StringImpl& path)
+{
+	String pathS = GetFileExtension(path); return
+		  hasFileExtension(".bf", path) || hasFileExtension(".beef", path) ? Beef
+		: hasFileExtension(".coral.reef", path) ? CoralReef
+		: hasFileExtension(".reef", path) ? Reef
+		: hasFileExtension(".reefscript", path) ? ReefScript
+		: hasFileExtension(".reefund", path) ? Reefund : None;
+}
+
 static String GetDriveStringTo(String path)
 {
 	if ((path.length() >= 2) && (path[1] == ':'))

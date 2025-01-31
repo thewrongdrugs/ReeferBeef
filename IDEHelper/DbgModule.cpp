@@ -854,8 +854,7 @@ bool DbgSrcFile::IsBeef()
 	if (dotPos == -1)
 		return false;
 	const char* ext = mFilePath.c_str() + dotPos;
-	// The ".cs" is legacy.  Remove that eventually.
-	return (stricmp(ext, ".bf") == 0) || (stricmp(ext, ".cs") == 0);
+	return (stricmp(ext, ".bf") == 0) || (stricmp(ext, ".reef") == 0) || (stricmp(ext, ".reefscript") == 0) || (stricmp(ext, ".reefund") == 0);
 }
 
 DbgSrcFile::~DbgSrcFile()

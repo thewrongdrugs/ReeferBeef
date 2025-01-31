@@ -8,6 +8,7 @@
 #include "BeefySysLib/util/FileEnumerator.h"
 #include "BeefySysLib/util/WorkThread.h"
 #include "BeefySysLib/platform/PlatformHelper.h"
+
 #include "Compiler/BfSystem.h"
 
 #ifdef BF_PLATFORM_WINDOWS
@@ -36,8 +37,8 @@ BF_IMPORT const char* BF_CALLTYPE BfCompiler_GetUsedOutputFileNames(void* bfComp
 BF_IMPORT void* BF_CALLTYPE BfSystem_CreateParser(void* bfSystem, void* bfProject);
 BF_IMPORT void BF_CALLTYPE BfParser_SetSource(void* bfParser, const char* data, int length, const char* fileName);
 BF_IMPORT void BF_CALLTYPE BfParser_SetCharIdData(void* bfParser, uint8* data, int length);
-BF_IMPORT bool BF_CALLTYPE BfParser_Parse(void* bfParser, void* bfPassInstance, bool compatMode);
-BF_IMPORT bool BF_CALLTYPE BfParser_Reduce(void* bfParser, void* bfPassInstance);
+BF_IMPORT bool BF_CALLTYPE BfParser_Parse(void* bfParser, void* bfPassInstance, bool compatMode, ExtTyp extension);
+BF_IMPORT bool BF_CALLTYPE BfParser_Reduce(void* bfParser, void* bfPassInstance, ExtTyp extension);
 BF_IMPORT bool BF_CALLTYPE BfParser_BuildDefs(void* bfParser, void* bfPassInstance, void* resolvePassData, bool fullRefresh);
 
 //////////////////////////////////////////////////////////////////////////
@@ -404,10 +405,7 @@ bool BootApp::Init()
 
 void BootApp::QueueFile(const StringImpl& path, void* project)
 {
-	String ext;
-	ext = GetFileExtension(path);
-    if ((ext.Equals(".bf", StringImpl::CompareKind_OrdinalIgnoreCase)) ||
-        (ext.Equals(".cs", StringImpl::CompareKind_OrdinalIgnoreCase)))
+    if (auto betterExample = GetMappedExtension(path))
 	{		
 		int len;
 		const char* data = LoadTextData(path, &len);
@@ -421,7 +419,7 @@ void BootApp::QueueFile(const StringImpl& path, void* project)
 		void* bfParser = BfSystem_CreateParser(mSystem, project);
 		BfParser_SetSource(bfParser, data, len, path.c_str());
 		//bfParser.SetCharIdData(charIdData);
-		worked &= BfParser_Parse(bfParser, mPassInstance, false);
+		worked &= BfParser_Parse(bfParser, mPassInstance, false, betterExample);
 		worked &= BfParser_Reduce(bfParser, mPassInstance);
 		worked &= BfParser_BuildDefs(bfParser, mPassInstance, NULL, false);
 		

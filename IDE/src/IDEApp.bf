@@ -8793,7 +8793,8 @@ namespace IDE
 		{
 			if (fileName.StartsWith('$'))
 				return true;
-			return fileName.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith(".bf", StringComparison.OrdinalIgnoreCase);
+			return fileName.EndsWith(".reefscript", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith(".reef", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith(".reefund", StringComparison.OrdinalIgnoreCase)
+			 || fileName.EndsWith(".bf", StringComparison.OrdinalIgnoreCase);
 		}
 
 		public static bool IsClangSourceFile(String fileName)
@@ -8809,7 +8810,8 @@ namespace IDE
 		{
 			if (fileName.StartsWith('$'))
 				return true;
-			return fileName.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith(".bf", StringComparison.OrdinalIgnoreCase) ||
+			return fileName.EndsWith(".reefscript", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith(".reef", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith(".reefund", StringComparison.OrdinalIgnoreCase)
+			 || fileName.EndsWith(".bf", StringComparison.OrdinalIgnoreCase) ||
 				fileName.EndsWith(".h", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith(".cpp", StringComparison.OrdinalIgnoreCase) ||
 				fileName.EndsWith(".c", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith(".cc", StringComparison.OrdinalIgnoreCase) ||
 				fileName.EndsWith(".hpp", StringComparison.OrdinalIgnoreCase);

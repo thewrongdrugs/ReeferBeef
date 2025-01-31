@@ -8885,7 +8885,7 @@ BfTupleExpression* BfReducer::CreateTupleExpression(BfTokenNode* node, BfExpress
 	return tupleExpr;
 }
 
-BfAstNode* BfReducer::HandleTopLevel(BfBlock* node)
+BfAstNode* BfReducer::HandleTopLevel(BfBlock* node, ExtTyp extension)
 {
 	SetAndRestoreValue<BfVisitorPos> prevVisitorPos(mVisitorPos, BfVisitorPos(node));
 
@@ -8944,6 +8944,19 @@ BfAstNode* BfReducer::HandleTopLevel(BfBlock* node)
 			if (statement != NULL)
 				mVisitorPos.Write(statement);
 		}
+	}
+
+	bool needsNotPackage = ExtTyp::Beef == extension;
+	bool needsClass;
+	bool needsAsignature = ExtTyp::ReefScript == extension;
+
+	switch (extension)
+	{
+	default:
+		needsClass = false;
+	case ExtTyp::Reefund:
+	case ExtTyp::Reef:
+		needsClass = true;
 	}
 
 	while (!isDone)
@@ -11185,7 +11198,7 @@ void BfReducer::HandleTypeDeclaration(BfTypeDeclaration* typeDecl, BfAttributeDi
 	mVisitorPos.Trim();
 }
 
-void BfReducer::HandleRoot(BfRootNode* rootNode)
+void BfReducer::HandleRoot(BfRootNode* rootNode, ExtTyp extension)
 {
 	String fileName;
 	auto parser = rootNode->GetSourceData()->ToParserData();

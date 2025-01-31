@@ -150,7 +150,9 @@ bool FuzzApp::QueuePath(const StringImpl& path)
 			ext = GetFileExtension(filePath);
 
 			if ((ext.Equals(".bf", StringImpl::CompareKind_OrdinalIgnoreCase)) ||
-				(ext.Equals(".cs", StringImpl::CompareKind_OrdinalIgnoreCase)))
+				(ext.Equals(".reef", StringImpl::CompareKind_OrdinalIgnoreCase)) ||
+				(ext.Equals(".reefund", StringImpl::CompareKind_OrdinalIgnoreCase)) ||
+				(ext.Equals(".reefscript", StringImpl::CompareKind_OrdinalIgnoreCase)))
 			{
 				int len;
 				const char* data = LoadTextData(filePath, &len);

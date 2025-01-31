@@ -137,6 +137,16 @@ typedef StringT<16> String;
 #define V_32_64(v32, v64) v32
 #endif
 
+enum ExtTyp
+{
+	None,
+	Beef,
+	Reef,
+	ReefScript,
+	Reefund,
+	CoralReef,
+};
+
 #define BF_PI 3.14159265359f
 #define BF_PI_D 3.14159265359
 
@@ -231,6 +241,7 @@ int64 GetFileTimeWrite(const StringImpl& path);
 String GetFileDir(const StringImpl& path);
 String GetFileName(const StringImpl& path);
 String GetFileExtension(const StringImpl& path);
+ExtTyp GetMappedExtension(const StringImpl& path);
 String GetRelativePath(const StringImpl& fullPath, const StringImpl& curDir);
 String GetAbsPath(const StringImpl& relPath, const StringImpl& dir);
 String FixPath(const StringImpl& path);

@@ -278,7 +278,7 @@ public:
 	BfDoStatement* CreateDoStatement(BfAstNode* node);
 	BfRepeatStatement* CreateRepeatStatement(BfAstNode* node);
 	BfAstNode* CreateTopLevelObject(BfTokenNode* tokenNode, BfAttributeDirective* attributes, BfAstNode* deferredHeadNode = NULL, bool isAnonymous = false);
-	BfAstNode* HandleTopLevel(BfBlock* node);
+	BfAstNode* HandleTopLevel(BfBlock* node, ExtTyp extension); /////////////
 	BfInlineAsmStatement* CreateInlineAsmStatement(BfAstNode* asmNode);
 
 	void HandleBlock(BfBlock* block, bool allowEndingExpression = false);
@@ -289,7 +289,7 @@ public:
 
 public:
 	BfReducer();
-	void HandleRoot(BfRootNode* rootNode);
+	void HandleRoot(BfRootNode* rootNode, ExtTyp extension); //////////////////
 };
 
 NS_BF_END
