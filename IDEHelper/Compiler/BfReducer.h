@@ -199,8 +199,8 @@ public:
 public:
 	bool StringEquals(BfAstNode* node, BfAstNode* node2);
 	bool IsSemicolon(BfAstNode* node);
-	BfTokenNode* ExpectTokenAfter(BfAstNode* node, BfToken token);
-	BfTokenNode* ExpectTokenAfter(BfAstNode* node, BfToken tokenA, BfToken tokenB);
+	BfTokenNode* ExpectTokenAfter(BfAstNode* node, BfToken token, bool error = true);
+	BfTokenNode* ExpectTokenAfter(BfAstNode* node, BfToken tokenA, BfToken tokenB, bool error = true);
 	BfTokenNode* ExpectTokenAfter(BfAstNode* node, BfToken tokenA, BfToken tokenB, BfToken tokenC);
 	BfTokenNode* ExpectTokenAfter(BfAstNode* node, BfToken tokenA, BfToken tokenB, BfToken tokenC, BfToken tokenD);
 	BfIdentifierNode* ExpectIdentifierAfter(BfAstNode* node, const char* typeName = NULL);
@@ -250,6 +250,9 @@ public:
 	BfExpression* CreateIndexerExpression(BfExpression* target, BfTokenNode* openBracketNode = NULL);
 	BfMemberReferenceExpression* CreateMemberReferenceExpression(BfAstNode* target);
 	BfTupleExpression* CreateTupleExpression(BfTokenNode* newNode, BfExpression* innerExpr = NULL);
+	bool HandleEnumDeclaration();
+	BfAstNode* HandleUsingDirective(BfTokenNode* tokenNode);
+	BfAstNode* HandleNamespaceDeclaration(BfTokenNode* tokenNode, ExtTyp extension);
 	BfExpression* CreateExpression(BfAstNode* node, CreateExprFlags createExprFlags = CreateExprFlags_None);
 	BfExpression* CreateExpressionAfter(BfAstNode* node, CreateExprFlags createExprFlags = CreateExprFlags_None);
 	BfSwitchStatement* CreateSwitchStatement(BfTokenNode* tokenNode);
@@ -277,7 +280,7 @@ public:
 	BfWhileStatement* CreateWhileStatement(BfAstNode* node);
 	BfDoStatement* CreateDoStatement(BfAstNode* node);
 	BfRepeatStatement* CreateRepeatStatement(BfAstNode* node);
-	BfAstNode* CreateTopLevelObject(BfTokenNode* tokenNode, BfAttributeDirective* attributes, BfAstNode* deferredHeadNode = NULL, bool isAnonymous = false);
+	BfAstNode* CreateTopLevelObject(BfTokenNode* tokenNode, BfAttributeDirective* attributes, BfAstNode* deferredHeadNode = NULL, bool isAnonymous = false, ExtTyp extension = Beef);
 	BfAstNode* HandleTopLevel(BfBlock* node, ExtTyp extension); /////////////
 	BfInlineAsmStatement* CreateInlineAsmStatement(BfAstNode* asmNode);
 
