@@ -8667,7 +8667,7 @@ BfObjectCreateExpression* BfReducer::CreateObjectCreateExpression(BfAstNode* all
 
 		// Note- if there WERE an LBracket here then we'd have an 'isArray' case. We pass this in here for
 		// error display purposes
-		tokenNode = ExpectTokenAfter(objectCreateExpr, BfToken_LParen, BfToken_LBracket, false);
+		tokenNode = ExpectTokenAfter(objectCreateExpr, BfToken_LParen, BfToken_LBracket);
 		if (tokenNode == NULL)
 			return objectCreateExpr;
 	}
@@ -8885,215 +8885,6 @@ BfTupleExpression* BfReducer::CreateTupleExpression(BfTokenNode* node, BfExpress
 	return tupleExpr;
 }
 
-bool BfReducer::HandleEnumDeclaration()
-{
-	int checkReadPos = mVisitorPos.mReadPos + 1;
-
-	// Do we just have a value list with no members?
-	auto nextNode = mVisitorPos.Get(checkReadPos);
-	auto checkNode = nextNode;
-	while (checkNode != NULL)
-	{
-		if (auto block = BfNodeDynCast<BfBlock>(checkNode))
-		{
-			SetAndRestoreValue<BfVisitorPos> prevVisitorPos(mVisitorPos, BfVisitorPos(block));
-			mVisitorPos.MoveNext();
-
-			bool hadIllegal = false;
-			bool inAssignment = false;
-			int bracketDepth = 0;
-			int parenDepth = 0;
-
-			int checkIdx = 0;
-			while (true)
-			{
-				auto node = block->mChildArr.Get(checkIdx);
-				if (node == NULL)
-					break;
-
-				if (auto identifierNode = BfNodeDynCast<BfIdentifierNode>(node))
-				{
-					// Allow
-				}
-				else if (auto tokenNode = BfNodeDynCast<BfTokenNode>(node))
-				{
-					if (tokenNode->mToken == BfToken_Comma)
-					{
-						// Allow
-						inAssignment = false;
-					}
-					else if (tokenNode->mToken == BfToken_AssignEquals)
-					{
-						inAssignment = true;
-					}
-					else if (tokenNode->mToken == BfToken_LBracket)
-					{
-						bracketDepth++;
-					}
-					else if (tokenNode->mToken == BfToken_RBracket)
-					{
-						bracketDepth--;
-					}
-					else if (tokenNode->mToken == BfToken_LParen)
-					{
-						parenDepth++;
-					}
-					else if (tokenNode->mToken == BfToken_RParen)
-					{
-						parenDepth--;
-					}
-					else if ((bracketDepth > 0) || (parenDepth > 0))
-					{
-						// Allow
-					}
-					else if (tokenNode->mToken == BfToken_Semicolon)
-					{
-						hadIllegal = true;
-						break;
-					}
-					else
-					{
-						if (!inAssignment)
-						{
-							hadIllegal = true;
-							break;
-						}
-					}
-				}
-				else if ((bracketDepth > 0) || (parenDepth > 0))
-				{
-					// Allow
-				}
-				else
-				{
-					if (!inAssignment)
-					{
-						hadIllegal = true;
-						break;
-					}
-				}
-				checkIdx++;
-			}
-
-			if (!hadIllegal)
-			{
-				return true;
-			}
-			break;
-		}
-		checkReadPos++;
-		auto nextCheckNode = mVisitorPos.Get(checkReadPos);
-		checkNode = nextCheckNode;
-	}
-}
-
-BfAstNode* BfReducer::HandleUsingDirective(BfTokenNode* tokenNode)
-{
-	if (auto nextTokenNode = BfNodeDynCast<BfTokenNode>(mVisitorPos.GetNext()))
-	{
-		if ((nextTokenNode->mToken == BfToken_Static) || (nextTokenNode->mToken == BfToken_Internal))
-		{
-			auto usingDirective = mAlloc->Alloc<BfUsingModDirective>();
-			ReplaceNode(tokenNode, usingDirective);
-			usingDirective->mUsingToken = tokenNode;
-
-			MEMBER_SET(usingDirective, mModToken, nextTokenNode);
-			mVisitorPos.MoveNext();
-
-			auto typeRef = CreateTypeRefAfter(usingDirective);
-			if (typeRef != NULL)
-				MEMBER_SET(usingDirective, mTypeRef, typeRef);
-
-			tokenNode = ExpectTokenAfter(usingDirective, BfToken_Semicolon);
-			if (tokenNode != NULL)
-				MEMBER_SET(usingDirective, mTrailingSemicolon, tokenNode);
-
-			BfExteriorNode exteriorNode;
-			exteriorNode.mNode = usingDirective;
-			BfSizedArrayInitIndirect(exteriorNode.mNamespaceNodes, mCurNamespaceStack, mAlloc);
-			mExteriorNodes.Add(exteriorNode);
-			return usingDirective;
-		}
-	}
-
-	auto usingDirective = mAlloc->Alloc<BfUsingDirective>();
-	ReplaceNode(tokenNode, usingDirective);
-	usingDirective->mUsingToken = tokenNode;
-
-	auto identifierNode = ExpectIdentifierAfter(usingDirective);
-	if (identifierNode != NULL)
-	{
-		identifierNode = CompactQualifiedName(identifierNode);
-
-		MEMBER_SET(usingDirective, mNamespace, identifierNode);
-		tokenNode = ExpectTokenAfter(usingDirective, BfToken_Semicolon);
-		if (tokenNode == NULL)
-		{
-			// Failure, but eat any following dot for autocompletion purposes
-			auto nextNode = mVisitorPos.GetNext();
-			if ((tokenNode = BfNodeDynCast<BfTokenNode>(nextNode)))
-			{
-				if (tokenNode->GetToken() == BfToken_Dot)
-				{
-					auto qualifiedNameNode = mAlloc->Alloc<BfQualifiedNameNode>();
-					ReplaceNode(usingDirective->mNamespace, qualifiedNameNode);
-					qualifiedNameNode->mLeft = usingDirective->mNamespace;
-					MEMBER_SET(qualifiedNameNode, mDot, tokenNode);
-					usingDirective->mNamespace = qualifiedNameNode;
-					usingDirective->SetSrcEnd(qualifiedNameNode->GetSrcEnd());
-					return usingDirective;
-				}
-			}
-		}
-		else if (tokenNode != NULL)
-		{
-			MEMBER_SET(usingDirective, mTrailingSemicolon, tokenNode);
-		}
-	}
-
-	BfExteriorNode exteriorNode;
-	exteriorNode.mNode = usingDirective;
-	mExteriorNodes.Add(exteriorNode);
-
-	return usingDirective;
-}
-
-BfAstNode* BfReducer::HandleNamespaceDeclaration(BfTokenNode* tokenNode, ExtTyp extension)
-{
-	auto namespaceDeclaration = mAlloc->Alloc<BfNamespaceDeclaration>();
-	namespaceDeclaration->mNamespaceNode = tokenNode;
-
-	auto identifierNode = ExpectIdentifierAfter(tokenNode);
-	if (identifierNode == NULL)
-		return namespaceDeclaration;
-	identifierNode = CompactQualifiedName(identifierNode);
-
-	namespaceDeclaration->mNameNode = identifierNode;
-	ReplaceNode(tokenNode, namespaceDeclaration);
-	MoveNode(identifierNode, namespaceDeclaration);
-
-	BfAstNode* bodyNode = NULL;
-	BfBlock* blockNode = NULL;
-
-	if (auto nextToken = BfNodeDynCast<BfTokenNode>(mVisitorPos.GetNext()))
-		bodyNode = ExpectTokenAfter(namespaceDeclaration, BfToken_Semicolon);
-	else if (extension == ExtTyp::Beef)
-		bodyNode = blockNode = ExpectBlockAfter(namespaceDeclaration);
-	else
-		return namespaceDeclaration;
-
-	MoveNode(bodyNode, namespaceDeclaration);
-	namespaceDeclaration->mBody = bodyNode;
-
-	if (extension == ExtTyp::Beef && blockNode != NULL)
-	{
-		mCurNamespaceStack.Add(namespaceDeclaration);
-		HandleTopLevel(blockNode, ExtTyp::Beef);
-		mCurNamespaceStack.pop_back();
-	}
-	return namespaceDeclaration;
-}
-
 BfAstNode* BfReducer::HandleTopLevel(BfBlock* node, ExtTyp extension)
 {
 	SetAndRestoreValue<BfVisitorPos> prevVisitorPos(mVisitorPos, BfVisitorPos(node));
@@ -9117,7 +8908,6 @@ BfAstNode* BfReducer::HandleTopLevel(BfBlock* node, ExtTyp extension)
 			}
 			prevNode = node;
 			BfAstNode* typeMember = BfNodeDynCast<BfMemberDeclaration>(node);
-
 			if (typeMember == NULL)
 			{
 				SetAndRestoreValue<BfAstNode*> prevTypeMemberNodeStart(mTypeMemberNodeStart, node);
@@ -9156,6 +8946,7 @@ BfAstNode* BfReducer::HandleTopLevel(BfBlock* node, ExtTyp extension)
 		}
 	}
 
+	bool needsNotPackage = ExtTyp::Beef == extension;
 	bool needsClass;
 	bool needsAsignature = ExtTyp::ReefScript == extension;
 
@@ -9163,19 +8954,11 @@ BfAstNode* BfReducer::HandleTopLevel(BfBlock* node, ExtTyp extension)
 	{
 	default:
 		needsClass = false;
-		break;
 	case ExtTyp::Reefund:
 	case ExtTyp::Reef:
 		needsClass = true;
-		break;
-	case ExtTyp::Beef:
-		goto Rest;
 	}
-Start:
 
-	auto currentNode = mVisitorPos.GetCurrent();
-
-Rest:
 	while (!isDone)
 	{
 		auto child = mVisitorPos.GetCurrent();
@@ -9207,20 +8990,222 @@ Rest:
 	return node;
 }
 
-BfAstNode* BfReducer::CreateTopLevelObject(BfTokenNode* tokenNode, BfAttributeDirective* attributes, BfAstNode* deferredHeadNode, bool isAnonymous, ExtTyp extension)
+BfAstNode* BfReducer::CreateTopLevelObject(BfTokenNode* tokenNode, BfAttributeDirective* attributes, BfAstNode* deferredHeadNode, bool isAnonymous)
 {
 	AssertCurrentNode(tokenNode);
 
 	bool isSimpleEnum = false;
 	if (tokenNode->GetToken() == BfToken_Enum)
-		isSimpleEnum = HandleEnumDeclaration();
+	{
+		int checkReadPos = mVisitorPos.mReadPos + 1;
+
+		// Do we just have a value list with no members?
+		auto nextNode = mVisitorPos.Get(checkReadPos);
+		auto checkNode = nextNode;
+		while (checkNode != NULL)
+		{
+			if (auto block = BfNodeDynCast<BfBlock>(checkNode))
+			{
+				SetAndRestoreValue<BfVisitorPos> prevVisitorPos(mVisitorPos, BfVisitorPos(block));
+				mVisitorPos.MoveNext();
+
+				bool hadIllegal = false;
+				bool inAssignment = false;
+				int bracketDepth = 0;
+				int parenDepth = 0;
+
+				int checkIdx = 0;
+				while (true)
+				{
+					auto node = block->mChildArr.Get(checkIdx);
+					if (node == NULL)
+						break;
+
+					if (auto identifierNode = BfNodeDynCast<BfIdentifierNode>(node))
+					{
+						// Allow
+					}
+					else if (auto tokenNode = BfNodeDynCast<BfTokenNode>(node))
+					{
+						if (tokenNode->mToken == BfToken_Comma)
+						{
+							// Allow
+							inAssignment = false;
+						}
+						else if (tokenNode->mToken == BfToken_AssignEquals)
+						{
+							inAssignment = true;
+						}
+						else if (tokenNode->mToken == BfToken_LBracket)
+						{
+							bracketDepth++;
+						}
+						else if (tokenNode->mToken == BfToken_RBracket)
+						{
+							bracketDepth--;
+						}
+						else if (tokenNode->mToken == BfToken_LParen)
+						{
+							parenDepth++;
+						}
+						else if (tokenNode->mToken == BfToken_RParen)
+						{
+							parenDepth--;
+						}
+						else if ((bracketDepth > 0) || (parenDepth > 0))
+						{
+							// Allow
+						}
+						else if (tokenNode->mToken == BfToken_Semicolon)
+						{
+							hadIllegal = true;
+							break;
+						}
+						else
+						{
+							if (!inAssignment)
+							{
+								hadIllegal = true;
+								break;
+							}
+						}
+					}
+					else if ((bracketDepth > 0) || (parenDepth > 0))
+					{
+						// Allow
+					}
+					else
+					{
+						if (!inAssignment)
+						{
+							hadIllegal = true;
+							break;
+						}
+					}
+
+					checkIdx++;
+				}
+
+				if (!hadIllegal)
+				{
+					isSimpleEnum = true;
+				}
+
+				break;
+			}
+
+			checkReadPos++;
+			auto nextCheckNode = mVisitorPos.Get(checkReadPos);
+			checkNode = nextCheckNode;
+		}
+	}
 
 	switch (tokenNode->GetToken())
 	{
 	case BfToken_Using:
-		return HandleUsingDirective(tokenNode);
+	{
+		if (auto nextTokenNode = BfNodeDynCast<BfTokenNode>(mVisitorPos.GetNext()))
+		{
+			if ((nextTokenNode->mToken == BfToken_Static) || (nextTokenNode->mToken == BfToken_Internal))
+			{
+				auto usingDirective = mAlloc->Alloc<BfUsingModDirective>();
+				ReplaceNode(tokenNode, usingDirective);
+				usingDirective->mUsingToken = tokenNode;
+
+				MEMBER_SET(usingDirective, mModToken, nextTokenNode);
+				mVisitorPos.MoveNext();
+
+				auto typeRef = CreateTypeRefAfter(usingDirective);
+				if (typeRef != NULL)
+					MEMBER_SET(usingDirective, mTypeRef, typeRef);
+
+				tokenNode = ExpectTokenAfter(usingDirective, BfToken_Semicolon);
+				if (tokenNode != NULL)
+					MEMBER_SET(usingDirective, mTrailingSemicolon, tokenNode);
+
+				BfExteriorNode exteriorNode;
+				exteriorNode.mNode = usingDirective;
+				BfSizedArrayInitIndirect(exteriorNode.mNamespaceNodes, mCurNamespaceStack, mAlloc);
+				mExteriorNodes.Add(exteriorNode);
+				return usingDirective;
+			}
+		}
+
+		auto usingDirective = mAlloc->Alloc<BfUsingDirective>();
+		ReplaceNode(tokenNode, usingDirective);
+		usingDirective->mUsingToken = tokenNode;
+
+		auto identifierNode = ExpectIdentifierAfter(usingDirective);
+		if (identifierNode != NULL)
+		{
+			identifierNode = CompactQualifiedName(identifierNode);
+
+			MEMBER_SET(usingDirective, mNamespace, identifierNode);
+			tokenNode = ExpectTokenAfter(usingDirective, BfToken_Semicolon);
+			if (tokenNode == NULL)
+			{
+				// Failure, but eat any following dot for autocompletion purposes
+				auto nextNode = mVisitorPos.GetNext();
+				if ((tokenNode = BfNodeDynCast<BfTokenNode>(nextNode)))
+				{
+					if (tokenNode->GetToken() == BfToken_Dot)
+					{
+						auto qualifiedNameNode = mAlloc->Alloc<BfQualifiedNameNode>();
+						ReplaceNode(usingDirective->mNamespace, qualifiedNameNode);
+						qualifiedNameNode->mLeft = usingDirective->mNamespace;
+						MEMBER_SET(qualifiedNameNode, mDot, tokenNode);
+						usingDirective->mNamespace = qualifiedNameNode;
+						usingDirective->SetSrcEnd(qualifiedNameNode->GetSrcEnd());
+						return usingDirective;
+					}
+				}
+			}
+			else if (tokenNode != NULL)
+			{
+				MEMBER_SET(usingDirective, mTrailingSemicolon, tokenNode);
+			}
+		}
+
+		BfExteriorNode exteriorNode;
+		exteriorNode.mNode = usingDirective;
+		mExteriorNodes.Add(exteriorNode);
+		return usingDirective;
+	}
+	break;
 	case BfToken_Namespace:
-		return HandleNamespaceDeclaration(tokenNode, extension);
+	{
+		auto namespaceDeclaration = mAlloc->Alloc<BfNamespaceDeclaration>();
+		namespaceDeclaration->mNamespaceNode = tokenNode;
+
+		auto identifierNode = ExpectIdentifierAfter(tokenNode);
+		if (identifierNode == NULL)
+			return namespaceDeclaration;
+		identifierNode = CompactQualifiedName(identifierNode);
+
+		namespaceDeclaration->mNameNode = identifierNode;
+		ReplaceNode(tokenNode, namespaceDeclaration);
+		MoveNode(identifierNode, namespaceDeclaration);
+
+		BfAstNode* bodyNode = NULL;
+		BfBlock* blockNode = NULL;
+
+		if (auto nextToken = BfNodeDynCast<BfTokenNode>(mVisitorPos.GetNext()))
+			bodyNode = ExpectTokenAfter(namespaceDeclaration, BfToken_Semicolon);
+		else
+			bodyNode = blockNode = ExpectBlockAfter(namespaceDeclaration);
+
+		if (bodyNode == NULL)
+			return namespaceDeclaration;
+		MoveNode(bodyNode, namespaceDeclaration);
+		namespaceDeclaration->mBody = bodyNode;
+
+		mCurNamespaceStack.Add(namespaceDeclaration);
+		if (blockNode != NULL)
+			HandleTopLevel(blockNode);
+		mCurNamespaceStack.pop_back();
+		return namespaceDeclaration;
+	}
+	break;
 	case BfToken_LBracket:
 	{
 		auto attributes = CreateAttributeDirective(tokenNode);
@@ -9791,13 +9776,13 @@ BfAstNode* BfReducer::CreateTopLevelObject(BfTokenNode* tokenNode, BfAttributeDi
 	return NULL;
 }
 
-BfTokenNode* BfReducer::ExpectTokenAfter(BfAstNode* node, BfToken token, bool error)
+BfTokenNode* BfReducer::ExpectTokenAfter(BfAstNode* node, BfToken token)
 {
 	AssertCurrentNode(node);
 	auto nextNode = mVisitorPos.GetNext();
 	auto tokenNode = BfNodeDynCast<BfTokenNode>(nextNode);
-	if (error && ((tokenNode == NULL) ||
-		(tokenNode->GetToken() != token)))
+	if ((tokenNode == NULL) ||
+		(tokenNode->GetToken() != token))
 	{
 		FailAfter(StrFormat("Expected '%s'", BfTokenToString(token)), node);
 		return NULL;
@@ -9806,13 +9791,13 @@ BfTokenNode* BfReducer::ExpectTokenAfter(BfAstNode* node, BfToken token, bool er
 	return tokenNode;
 }
 
-BfTokenNode* BfReducer::ExpectTokenAfter(BfAstNode* node, BfToken tokenA, BfToken tokenB, bool error)
+BfTokenNode* BfReducer::ExpectTokenAfter(BfAstNode* node, BfToken tokenA, BfToken tokenB)
 {
 	AssertCurrentNode(node);
 	auto nextNode = mVisitorPos.GetNext();
 	auto tokenNode = BfNodeDynCast<BfTokenNode>(nextNode);
-	if (error && ((tokenNode == NULL) ||
-		((tokenNode->GetToken() != tokenA) && (tokenNode->GetToken() != tokenB))))
+	if ((tokenNode == NULL) ||
+		((tokenNode->GetToken() != tokenA) && (tokenNode->GetToken() != tokenB)))
 	{
 		FailAfter(StrFormat("Expected '%s' or '%s'", BfTokenToString(tokenA), BfTokenToString(tokenB)), node);
 		return NULL;
@@ -11223,7 +11208,7 @@ void BfReducer::HandleRoot(BfRootNode* rootNode, ExtTyp extension)
 
 	mAlloc = &rootNode->GetSourceData()->mAlloc;
 	mSystem = mSource->mSystem;
-	HandleTopLevel(rootNode, extension);
+	HandleTopLevel(rootNode);
 	BfSizedArrayInitIndirect(mSource->mSourceData->mExteriorNodes, mExteriorNodes, mAlloc);
 	mAlloc = NULL;
 
