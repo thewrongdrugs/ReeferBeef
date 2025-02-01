@@ -137,7 +137,7 @@ typedef StringT<16> String;
 #define V_32_64(v32, v64) v32
 #endif
 
-enum ExtTyp : byte
+enum ExtTyp
 {
 	None,
 	Beef,
