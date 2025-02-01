@@ -9201,7 +9201,7 @@ BfAstNode* BfReducer::CreateTopLevelObject(BfTokenNode* tokenNode, BfAttributeDi
 
 		mCurNamespaceStack.Add(namespaceDeclaration);
 		if (blockNode != NULL)
-			HandleTopLevel(blockNode);
+			HandleTopLevel(blockNode, Beef);
 		mCurNamespaceStack.pop_back();
 		return namespaceDeclaration;
 	}
@@ -11208,7 +11208,7 @@ void BfReducer::HandleRoot(BfRootNode* rootNode, ExtTyp extension)
 
 	mAlloc = &rootNode->GetSourceData()->mAlloc;
 	mSystem = mSource->mSystem;
-	HandleTopLevel(rootNode);
+	HandleTopLevel(rootNode, extension);
 	BfSizedArrayInitIndirect(mSource->mSourceData->mExteriorNodes, mExteriorNodes, mAlloc);
 	mAlloc = NULL;
 
