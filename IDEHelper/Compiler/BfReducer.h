@@ -206,10 +206,10 @@ public:
 public:
 	bool StringEquals(BfAstNode* node, BfAstNode* node2);
 	bool IsSemicolon(BfAstNode* node);
-	BfTokenNode* ExpectTokenAfter(BfAstNode* node, BfToken token);
-	BfTokenNode* ExpectTokenAfter(BfAstNode* node, BfToken tokenA, BfToken tokenB);
-	BfTokenNode* ExpectTokenAfter(BfAstNode* node, BfToken tokenA, BfToken tokenB, BfToken tokenC);
-	BfTokenNode* ExpectTokenAfter(BfAstNode* node, BfToken tokenA, BfToken tokenB, BfToken tokenC, BfToken tokenD);
+	BfTokenNode* ExpectTokenAfter(BfAstNode* node, BfToken token, bool fail = true);
+	BfTokenNode* ExpectTokenAfter(BfAstNode* node, BfToken tokenA, BfToken tokenB, bool fail = true);
+	BfTokenNode* ExpectTokenAfter(BfAstNode* node, BfToken tokenA, BfToken tokenB, BfToken tokenC, bool fail = true);
+	BfTokenNode* ExpectTokenAfter(BfAstNode* node, BfToken tokenA, BfToken tokenB, BfToken tokenC, BfToken tokenD, bool fail = true);
 	BfIdentifierNode* ExpectIdentifierAfter(BfAstNode* node, const char* typeName = NULL);
 	BfBlock* ExpectBlockAfter(BfAstNode* node);
 	BfTokenNode* BreakDoubleChevron(BfTokenNode* tokenNode);
