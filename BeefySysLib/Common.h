@@ -140,11 +140,9 @@ typedef StringT<16> String;
 enum ExtTyp : unsigned char
 {
 	None,
-	Beef,
-	Reef,
-	ReefScript,
-	Reefund,
-	CoralReef,
+	Bf, Beef,
+	Reef, ReefScript, Reefund,
+	CoralReef, ///////////////
 };
 
 #define BF_PI 3.14159265359f

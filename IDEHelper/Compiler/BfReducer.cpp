@@ -8891,11 +8891,9 @@ BfAstNode* BfReducer::HandleTopLevel(BfBlock* node, ExtTyp extension)
 
 	BfAstNode* prevNode = NULL;
 	bool hadPrevFail = false;
-
 	bool isDone = !mVisitorPos.MoveNext();
 
 	auto parser = mSource->ToParser();
-
 	if ((parser != NULL) && (parser->mEmbedKind == BfSourceEmbedKind_Type))
 	{
 		while (!isDone)
@@ -8946,21 +8944,51 @@ BfAstNode* BfReducer::HandleTopLevel(BfBlock* node, ExtTyp extension)
 		}
 	}
 
-	bool needsNotPackage = ExtTyp::Beef == extension;
+	bool needsNotPackage = ExtTyp::Bf == extension || ExtTyp::Beef == extension;
 	bool needsClass;
 	bool needsAsignature = ExtTyp::ReefScript == extension;
-
-	switch (extension)
-	{
-	default:
-		needsClass = false;
-	case ExtTyp::Reefund:
-	case ExtTyp::Reef:
-		needsClass = true;
-	}
+	needsClass = !needsNotPackage && !needsAsignature;
 
 	while (!isDone)
 	{
+		bool parseClass = false;
+		if (!needsNotPackage)
+		{
+			if (mVisitorPos.GetToken(BfToken_Namespace))
+				needsNotPackage = true;
+			else
+				Fail("Needs a package.", mVisitorPos.GetCurrent());
+		}
+		else if (needsClass)
+		{
+			auto tokenNode = mVisitorPos.GetToken();
+			AssertCurrentNode(tokenNode);
+			BfToken tokenKind = tokenNode->GetToken();
+
+			switch (tokenKind)
+			{
+			case BfToken_Class:
+			case BfToken_Struct:
+			case BfToken_Interface:
+			case BfToken_Enum:
+			case BfToken_Extension:
+
+			case BfToken_Sealed:
+			case BfToken_Abstract:
+			case BfToken_Public:
+			case BfToken_Private:
+			case BfToken_Protected:
+			case BfToken_Internal:
+			case BfToken_Static:
+				parseClass = true;
+				needsClass = false;
+				break;
+			default:
+				Fail("Needs class statement.", mVisitorPos.GetCurrent());
+				break;
+			}
+		}
+
 		auto child = mVisitorPos.GetCurrent();
 		if (child == prevNode)
 		{
@@ -8979,18 +9007,66 @@ BfAstNode* BfReducer::HandleTopLevel(BfBlock* node, ExtTyp extension)
 			continue;
 		}
 		SetAndRestoreValue<BfAstNode*> prevTypeMemberNodeStart(mTypeMemberNodeStart, tokenNode);
-		auto newNode = CreateTopLevelObject(tokenNode, NULL);
+		auto newNode = CreateTopLevelObject(tokenNode, NULL, 0, false, extension);
 		hadPrevFail = newNode == NULL;
 
 		isDone = !mVisitorPos.MoveNext();
 		if (newNode != NULL)
+		{
 			mVisitorPos.Write(newNode);
+
+			if (parseClass)
+			{
+				auto typeDecl = (BfTypeDeclaration*)newNode;
+
+				auto rootNode = mAlloc->Alloc<BfRootNode>();
+				rootNode->mOpenBrace = BfNodeDynCast<BfTokenNode>(typeDecl->mDefineNode);
+				rootNode->Init(typeDecl->mDefineNode->mTriviaStart, typeDecl->mDefineNode->mSrcStart, typeDecl->mDefineNode->mSrcEnd);
+				MoveNode(typeDecl->mDefineNode = rootNode, typeDecl);
+				SetAndRestoreValue<BfTypeDeclaration*> prevTypeDecl(mCurTypeDecl, typeDecl);
+				CurTypeState curTypeState(typeDecl, mAlloc);
+				SetAndRestoreValue<CurTypeState*> prevTypeState(mCurTypeState, &curTypeState);
+				SetAndRestoreValue<BfVisitorPos> prevVisitorPos(mVisitorPos, BfVisitorPos(rootNode));
+
+				BfAstNode* prevNode = NULL;
+
+				bool isDone = !mVisitorPos.MoveNext();
+				while (!isDone)
+				{
+					auto node = mVisitorPos.GetCurrent();
+					if (node == prevNode)
+					{
+						BF_FATAL("Should have handled node already");
+						// If we're stuck on an error and can't process any more nodes
+						break;
+					}
+					prevNode = node;
+					BfAstNode* typeMember = BfNodeDynCast<BfMemberDeclaration>(node);
+					if (typeMember == NULL)
+					{
+						SetAndRestoreValue<BfAstNode*> prevTypeMemberNodeStart(mTypeMemberNodeStart, node);
+						typeMember = ReadTypeMember(node);
+					}
+
+					//methodDeclaration->mDocumentation = FindDocumentation(methodDeclaration);
+
+					isDone = !mVisitorPos.MoveNext();
+					if (typeMember != NULL)
+					{
+						mVisitorPos.Write(typeMember);
+					}
+				}
+				mVisitorPos.Trim();
+				return node;
+			}
+		}
 	}
+
 	mVisitorPos.Trim();
 	return node;
 }
 
-BfAstNode* BfReducer::CreateTopLevelObject(BfTokenNode* tokenNode, BfAttributeDirective* attributes, BfAstNode* deferredHeadNode, bool isAnonymous)
+BfAstNode* BfReducer::CreateTopLevelObject(BfTokenNode* tokenNode, BfAttributeDirective* attributes, BfAstNode* deferredHeadNode, bool isAnonymous, ExtTyp extension)
 {
 	AssertCurrentNode(tokenNode);
 
@@ -9173,39 +9249,7 @@ BfAstNode* BfReducer::CreateTopLevelObject(BfTokenNode* tokenNode, BfAttributeDi
 	}
 	break;
 	case BfToken_Namespace:
-	{
-		auto namespaceDeclaration = mAlloc->Alloc<BfNamespaceDeclaration>();
-		namespaceDeclaration->mNamespaceNode = tokenNode;
-
-		auto identifierNode = ExpectIdentifierAfter(tokenNode);
-		if (identifierNode == NULL)
-			return namespaceDeclaration;
-		identifierNode = CompactQualifiedName(identifierNode);
-
-		namespaceDeclaration->mNameNode = identifierNode;
-		ReplaceNode(tokenNode, namespaceDeclaration);
-		MoveNode(identifierNode, namespaceDeclaration);
-
-		BfAstNode* bodyNode = NULL;
-		BfBlock* blockNode = NULL;
-
-		if (auto nextToken = BfNodeDynCast<BfTokenNode>(mVisitorPos.GetNext()))
-			bodyNode = ExpectTokenAfter(namespaceDeclaration, BfToken_Semicolon);
-		else
-			bodyNode = blockNode = ExpectBlockAfter(namespaceDeclaration);
-
-		if (bodyNode == NULL)
-			return namespaceDeclaration;
-		MoveNode(bodyNode, namespaceDeclaration);
-		namespaceDeclaration->mBody = bodyNode;
-
-		mCurNamespaceStack.Add(namespaceDeclaration);
-		if (blockNode != NULL)
-			HandleTopLevel(blockNode, Beef);
-		mCurNamespaceStack.pop_back();
-		return namespaceDeclaration;
-	}
-	break;
+		return HandleNamespaceDeclaration(tokenNode);
 	case BfToken_LBracket:
 	{
 		auto attributes = CreateAttributeDirective(tokenNode);
@@ -9274,7 +9318,7 @@ BfAstNode* BfReducer::CreateTopLevelObject(BfTokenNode* tokenNode, BfAttributeDi
 		}
 		mVisitorPos.MoveNext();
 
-		auto topLevelObject = CreateTopLevelObject(nextToken, attributes);
+		auto topLevelObject = CreateTopLevelObject(nextToken, attributes, 0, false, extension);
 		if (topLevelObject == NULL)
 		{
 			AddErrorNode(tokenNode);
@@ -9616,11 +9660,15 @@ BfAstNode* BfReducer::CreateTopLevelObject(BfTokenNode* tokenNode, BfAttributeDi
 			if ((tokenNode->GetToken() == BfToken_Semicolon) && (!isAnonymous))
 			{
 				typeDeclaration->mDefineNode = tokenNode;
-				MoveNode(tokenNode, typeDeclaration);
+				if (extension == Bf || extension == Beef)
+					MoveNode(tokenNode, typeDeclaration);
 				mVisitorPos.MoveNext();
 				return typeDeclaration;
 			}
 		}
+
+		if (extension != None && extension != Bf && extension != Beef)
+			Fail("Must be class statement.", nullptr);
 
 		if ((isAnonymous) && (!BfNodeIsA<BfBlock>(nextNode)))
 			return typeDeclaration;
@@ -11144,7 +11192,8 @@ void BfReducer::HandleTypeDeclaration(BfTypeDeclaration* typeDecl, BfAttributeDi
 	SetAndRestoreValue<BfTypeDeclaration*> prevTypeDecl(mCurTypeDecl, typeDecl);
 	CurTypeState curTypeState(typeDecl, mAlloc);
 	SetAndRestoreValue<CurTypeState*> prevTypeState(mCurTypeState, &curTypeState);
-	SetAndRestoreValue<BfVisitorPos> prevVisitorPos(mVisitorPos, BfVisitorPos(BfNodeDynCast<BfBlock>(typeDecl->mDefineNode)));
+	auto block = BfNodeDynCast<BfBlock>(typeDecl->mDefineNode);
+	SetAndRestoreValue<BfVisitorPos> prevVisitorPos(mVisitorPos, BfVisitorPos(block));
 
 	if (findInitializer)
 		prevVisitorPos.CancelRestore();
@@ -11198,7 +11247,7 @@ void BfReducer::HandleTypeDeclaration(BfTypeDeclaration* typeDecl, BfAttributeDi
 	mVisitorPos.Trim();
 }
 
-void BfReducer::HandleRoot(BfRootNode* rootNode, ExtTyp extension)
+void BfReducer::HandleRoot(BfRootNode* rootNode)
 {
 	String fileName;
 	auto parser = rootNode->GetSourceData()->ToParserData();
@@ -11208,12 +11257,54 @@ void BfReducer::HandleRoot(BfRootNode* rootNode, ExtTyp extension)
 
 	mAlloc = &rootNode->GetSourceData()->mAlloc;
 	mSystem = mSource->mSystem;
-	HandleTopLevel(rootNode, extension);
+	HandleTopLevel(rootNode, GetMappedExtension(fileName));
 	BfSizedArrayInitIndirect(mSource->mSourceData->mExteriorNodes, mExteriorNodes, mAlloc);
 	mAlloc = NULL;
 
 	if (mPassInstance->HasFailed())
 		mSource->mParsingFailed = true;
+}
+
+BfNamespaceDeclaration* BfReducer::HandleNamespaceDeclaration(BfTokenNode* tokenNode, bool forBeef)
+{
+	auto namespaceDeclaration = mAlloc->Alloc<BfNamespaceDeclaration>();
+	namespaceDeclaration->mNamespaceNode = tokenNode;
+
+	auto identifierNode = ExpectIdentifierAfter(tokenNode);
+	if (identifierNode == NULL)
+		return namespaceDeclaration;
+	identifierNode = CompactQualifiedName(identifierNode);
+
+	namespaceDeclaration->mNameNode = identifierNode;
+	ReplaceNode(tokenNode, namespaceDeclaration);
+	MoveNode(identifierNode, namespaceDeclaration);
+
+	BfAstNode* bodyNode = NULL;
+	BfBlock* blockNode = NULL;
+
+	if (!forBeef)
+	{
+		MoveNode(bodyNode = ExpectTokenAfter(namespaceDeclaration, BfToken_Semicolon), namespaceDeclaration);
+		namespaceDeclaration->mBody = bodyNode;
+		return namespaceDeclaration;
+	}
+
+	if (auto nextToken = BfNodeDynCast<BfTokenNode>(mVisitorPos.GetNext()))
+		bodyNode = ExpectTokenAfter(namespaceDeclaration, BfToken_Semicolon);
+	else
+		bodyNode = blockNode = ExpectBlockAfter(namespaceDeclaration);
+
+	if (bodyNode == NULL)
+		return namespaceDeclaration;
+
+	MoveNode(bodyNode, namespaceDeclaration);
+	namespaceDeclaration->mBody = bodyNode;
+
+	mCurNamespaceStack.Add(namespaceDeclaration);
+	if (blockNode != NULL)
+		HandleTopLevel(blockNode, Beef);
+	mCurNamespaceStack.pop_back();
+	return namespaceDeclaration;
 }
 
 static String NodeToString(BfAstNode* node)
@@ -11232,7 +11323,6 @@ BfInlineAsmStatement* BfReducer::CreateInlineAsmStatement(BfAstNode* asmNode)
 	ReplaceNode(asmToken, blockNode);
 
 	BfInlineAsmStatement* asmStatement = (BfInlineAsmStatement*)blockNode;
-
 	{
 		auto processInstrNodes = [&](const Array<BfAstNode*>& nodes) -> BfInlineAsmInstruction*
 			{

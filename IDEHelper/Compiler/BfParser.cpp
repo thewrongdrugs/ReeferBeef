@@ -4076,7 +4076,7 @@ PerfManager* BfGetPerfManager(BfParser* bfParser)
 	return NULL;
 }
 
-BF_EXPORT bool BF_CALLTYPE BfParser_Parse(BfParser* bfParser, BfPassInstance* bfPassInstance, bool compatMode, ExtTyp extension)
+BF_EXPORT bool BF_CALLTYPE BfParser_Parse(BfParser* bfParser, BfPassInstance* bfPassInstance, bool compatMode)
 {
 	BP_ZONE("BfParser_Parse");
 	int startFailIdx = bfPassInstance->mFailedIdx;
@@ -4086,7 +4086,7 @@ BF_EXPORT bool BF_CALLTYPE BfParser_Parse(BfParser* bfParser, BfPassInstance* bf
 	return startFailIdx == bfPassInstance->mFailedIdx;
 }
 
-BF_EXPORT bool BF_CALLTYPE BfParser_Reduce(BfParser* bfParser, BfPassInstance* bfPassInstance, ExtTyp extension)
+BF_EXPORT bool BF_CALLTYPE BfParser_Reduce(BfParser* bfParser, BfPassInstance* bfPassInstance)
 {
 	BP_ZONE("BfParser_Reduce");
 	if (bfParser->mUsingCache)
@@ -4099,7 +4099,7 @@ BF_EXPORT bool BF_CALLTYPE BfParser_Reduce(BfParser* bfParser, BfPassInstance* b
 	bfReducer.mSource = bfParser;
 	bfReducer.mCompatMode = bfParser->mCompatMode;
 	bfReducer.mPassInstance = bfPassInstance;
-	bfReducer.HandleRoot(bfParser->mRootNode, extension);
+	bfReducer.HandleRoot(bfParser->mRootNode);
 	if ((startFailIdx != bfPassInstance->mFailedIdx) ||
 		(startWarningCount != bfPassInstance->mWarningCount))
 		bfParser->mParserData->mFailed = true;

@@ -91,6 +91,13 @@ public:
 			return (*mParent)[idx];
 		}
 
+		BfTokenNode* GetToken(BfToken bftoken = BfToken_None)
+		{
+			auto token = BfNodeDynCast<BfTokenNode>(this->GetCurrent());
+			bool bCond = token == nullptr || bftoken == BfToken_None;
+			return bCond || token->GetToken() == bftoken ? token : nullptr;
+		}
+
 		void Set(int idx, BfAstNode* node)
 		{
 			if (((uint)idx >= (uint)mTotalSize))
@@ -277,7 +284,7 @@ public:
 	BfWhileStatement* CreateWhileStatement(BfAstNode* node);
 	BfDoStatement* CreateDoStatement(BfAstNode* node);
 	BfRepeatStatement* CreateRepeatStatement(BfAstNode* node);
-	BfAstNode* CreateTopLevelObject(BfTokenNode* tokenNode, BfAttributeDirective* attributes, BfAstNode* deferredHeadNode = NULL, bool isAnonymous = false);
+	BfAstNode* CreateTopLevelObject(BfTokenNode* tokenNode, BfAttributeDirective* attributes, BfAstNode* deferredHeadNode = NULL, bool isAnonymous = false, ExtTyp extension = None);
 	BfAstNode* HandleTopLevel(BfBlock* node, ExtTyp extension); /////////////
 	BfInlineAsmStatement* CreateInlineAsmStatement(BfAstNode* asmNode);
 
@@ -289,7 +296,10 @@ public:
 
 public:
 	BfReducer();
-	void HandleRoot(BfRootNode* rootNode, ExtTyp extension); //////////////////
+	void HandleRoot(BfRootNode* rootNode); //////////////////
+
+public:
+	BfNamespaceDeclaration* HandleNamespaceDeclaration(BfTokenNode* tokenNode, bool forBeef = true);
 };
 
 NS_BF_END

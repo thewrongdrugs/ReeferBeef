@@ -1052,11 +1052,11 @@ bool hasFileExtension(char ext[], const StringImpl& pathEnding)
 ExtTyp Beefy::GetMappedExtension(const StringImpl& path)
 {
 	String pathS = GetFileExtension(path); return
-		  hasFileExtension(".bf", path) || hasFileExtension(".beef", path) ? Beef
-		: hasFileExtension(".coral.reef", path) ? CoralReef
-		: hasFileExtension(".reef", path) ? Reef
-		: hasFileExtension(".reefscript", path) ? ReefScript
-		: hasFileExtension(".reefund", path) ? Reefund : None;
+		  hasFileExtension(".bf", pathS) ? Bf : hasFileExtension(".beef", pathS) ? Beef
+		: hasFileExtension(".coral.reef", pathS) ? CoralReef
+		: hasFileExtension(".reef", pathS) ? Reef
+		: hasFileExtension(".reefscript", pathS) ? ReefScript
+		: hasFileExtension(".reefund", pathS) ? Reefund : None;
 }
 
 static String GetDriveStringTo(String path)

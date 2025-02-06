@@ -1,13 +1,12 @@
-using System;
-
 namespace HelloWorld;
 
-class Program
-{
-	public static int Main(String[] args)
-	{
-		Console.Read();
+class Program;
 
-		return 0;
-	}
+//using System;
+
+public static int Main(String[] args)
+{
+	Console.Read();
+
+	return 0;
 }
